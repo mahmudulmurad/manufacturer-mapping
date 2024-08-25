@@ -45,6 +45,26 @@ $ yarn run start:dev
 $ yarn run start:prod
 ```
 
+## Dockerize way of running the app
+
+```bash
+# build
+$ make build
+
+# start the container
+$ make start
+
+#stop the container
+$ make stop
+```
+
+## API Documentation
+
+```bash
+# type in browser
+$ http://localhost:3111/api
+```
+
 ## Test
 
 ```bash
@@ -71,4 +91,5 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](LICENSE).
+
 # manufacturer-mapping
