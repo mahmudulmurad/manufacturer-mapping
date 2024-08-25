@@ -13,7 +13,9 @@ export class ManufacturerService {
     private manufacturerRepository: Repository<ManufacturerEntity>,
   ) {}
 
-  async parseCSVAndMapManufacturers(dto: FilePathDTO) {
+  async parseCSVAndMapManufacturers(
+    dto: FilePathDTO,
+  ): Promise<ManufacturerEntity[]> {
     const { otherSources, matchSource } = dto;
     const productMap = new Map<string, string[]>();
 
@@ -22,7 +24,7 @@ export class ManufacturerService {
     }
 
     await this.processMatchFile(matchSource, productMap);
-    await this.saveManufacturers(productMap);
+    return await this.saveManufacturers(productMap);
   }
 
   private async processCSV(file: string, productMap: Map<string, string[]>) {
@@ -115,17 +117,26 @@ export class ManufacturerService {
     });
   }
 
-  private async saveManufacturers(productMap: Map<string, string[]>) {
+  private async saveManufacturers(
+    productMap: Map<string, string[]>,
+  ): Promise<ManufacturerEntity[]> {
+    const savedManufacturers: ManufacturerEntity[] = [];
+
     for (const [productId, manufacturers] of productMap.entries()) {
       const uniqueManufacturers = Array.from(new Set(manufacturers));
       const relatedManufacturers = uniqueManufacturers.join(',');
+
       const manufacturerEntity = new ManufacturerEntity();
       manufacturerEntity.name = productId;
       manufacturerEntity.relatedManufacturers = relatedManufacturers;
-      manufacturerEntity.relationType = ''; // You can define logic to set this
+      manufacturerEntity.relationType = '';
 
-      await this.manufacturerRepository.save(manufacturerEntity);
+      const savedEntity =
+        await this.manufacturerRepository.save(manufacturerEntity);
+      savedManufacturers.push(savedEntity);
     }
+
+    return savedManufacturers;
   }
 
   async assignManufacturerByTitle(dto: CommonDTO): Promise<string> {
