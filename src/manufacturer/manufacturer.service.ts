@@ -17,7 +17,7 @@ export class ManufacturerService {
     dto: FilePathDTO,
   ): Promise<ManufacturerEntity[]> {
     const { otherSources, matchSource } = dto;
-    const productMap = new Map<string, string[]>();
+    const productMap = new Map<string, { title: string; data: string[] }>();
 
     for (const file of otherSources) {
       await this.processCSV(file, productMap);
@@ -27,7 +27,10 @@ export class ManufacturerService {
     return await this.saveManufacturers(productMap);
   }
 
-  private async processCSV(file: string, productMap: Map<string, string[]>) {
+  private async processCSV(
+    file: string,
+    productMap: Map<string, { title: string; data: string[] }>,
+  ) {
     return new Promise<void>((resolve, reject) => {
       fs.createReadStream(file)
         .pipe(csv())
@@ -37,6 +40,7 @@ export class ManufacturerService {
 
           // Split the header and data strings into arrays
           const headers = header.split(';');
+
           const values = data.split(';');
 
           // A dictionary of the parsed values
@@ -54,10 +58,13 @@ export class ManufacturerService {
           const manufacturer = productData['manufacturer'];
 
           if (manufacturer && !productMap.has(productId)) {
-            productMap.set(productId, []);
+            productMap.set(productId, {
+              title: productData['title'],
+              data: [],
+            });
           }
           if (manufacturer) {
-            productMap.get(productId).push(manufacturer);
+            productMap.get(productId).data.push(manufacturer);
           }
         })
         .on('end', () => {
@@ -71,7 +78,7 @@ export class ManufacturerService {
 
   private async processMatchFile(
     matchFile: string,
-    productMap: Map<string, string[]>,
+    productMap: Map<string, { title: string; data: string[] }>,
   ) {
     return new Promise<void>((resolve, reject) => {
       fs.createReadStream(matchFile)
@@ -98,9 +105,9 @@ export class ManufacturerService {
             const competitorManufacturers = productMap.get(competitorProductId);
             if (productMap.has(mainProductId)) {
               const mainManufacturers = productMap.get(mainProductId);
-              competitorManufacturers.forEach((manufacturer) => {
-                if (!mainManufacturers.includes(manufacturer)) {
-                  mainManufacturers.push(manufacturer);
+              competitorManufacturers.data.forEach((manufacturer) => {
+                if (!mainManufacturers.data.includes(manufacturer)) {
+                  mainManufacturers.data.push(manufacturer);
                 }
               });
             } else {
@@ -118,22 +125,29 @@ export class ManufacturerService {
   }
 
   private async saveManufacturers(
-    productMap: Map<string, string[]>,
+    productMap: Map<string, { title: string; data: string[] }>,
   ): Promise<ManufacturerEntity[]> {
     const savedManufacturers: ManufacturerEntity[] = [];
 
-    for (const [productId, manufacturers] of productMap.entries()) {
-      const uniqueManufacturers = Array.from(new Set(manufacturers));
+    for (const [productId, dto] of productMap.entries()) {
+      const uniqueManufacturers = Array.from(new Set(dto.data));
       const relatedManufacturers = uniqueManufacturers.join(',');
 
-      const manufacturerEntity = new ManufacturerEntity();
-      manufacturerEntity.name = productId;
-      manufacturerEntity.relatedManufacturers = relatedManufacturers;
-      manufacturerEntity.relationType = '';
+      const existingProduct = await this.manufacturerRepository.findOne({
+        where: { name: productId },
+      });
 
-      const savedEntity =
-        await this.manufacturerRepository.save(manufacturerEntity);
-      savedManufacturers.push(savedEntity);
+      if (!existingProduct) {
+        const manufacturerEntity = new ManufacturerEntity();
+        manufacturerEntity.name = productId;
+        manufacturerEntity.title = dto.title;
+        manufacturerEntity.relatedManufacturers = relatedManufacturers;
+        manufacturerEntity.relationType = '';
+
+        const savedEntity =
+          await this.manufacturerRepository.save(manufacturerEntity);
+        savedManufacturers.push(savedEntity);
+      }
     }
 
     return savedManufacturers;

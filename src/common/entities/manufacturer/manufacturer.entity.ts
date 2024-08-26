@@ -1,12 +1,16 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, Unique } from 'typeorm';
 
 @Entity()
+@Unique(['name'])
 export class ManufacturerEntity {
   @PrimaryGeneratedColumn()
   id: string;
 
   @Column()
   name: string;
+
+  @Column()
+  title: string;
 
   @Column()
   relatedManufacturers: string;

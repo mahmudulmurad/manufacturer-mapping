@@ -1,16 +1,14 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
 COPY package.json yarn.lock ./
-
-RUN yarn
-
+RUN yarn install && yarn cache clean
 COPY . .
-
 RUN yarn build
 
-EXPOSE 3111
+RUN chmod -R 777 /app/node_modules && chmod -R 777 /app/dist
 
+EXPOSE 3111
 
 CMD ["yarn", "start:dev"]
