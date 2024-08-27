@@ -142,7 +142,10 @@ export class ManufacturerService {
         manufacturerEntity.name = productId;
         manufacturerEntity.title = dto.title;
         manufacturerEntity.relatedManufacturers = relatedManufacturers;
-        manufacturerEntity.relationType = '';
+        manufacturerEntity.relationType = this.manufacturerRelationshipAlgo(
+          uniqueManufacturers,
+          dto.title,
+        );
 
         const savedEntity =
           await this.manufacturerRepository.save(manufacturerEntity);
@@ -182,5 +185,78 @@ export class ManufacturerService {
   private isInvalidManufacturer(name: string): boolean {
     const commonWords = ['Health', 'Pharma', 'Inc', 'Ltd'];
     return commonWords.includes(name);
+  }
+
+  private manufacturerRelationshipAlgo(
+    manufacturers: string[],
+    title: string,
+  ): string {
+    // only one manufacturer, the function labels it as "parent."
+    // When there are two manufacturers, it cleans and normalizes their names by removing non-English letters
+    // and converting them to lowercase. If the cleaned names are identical, the function returns "parent."
+    // If one name is a substring of the other,it returns "child/parent" or "parent/child" depending one the smaller one;
+    // otherwise, the first and senond one will be check if any of them are substring of title then
+    //which one is substring ,it will be parent and other will be child
+    // and If both are found as substrings in the title, the larger one is the parent
+
+    // with more than two manufacturers, the function classifies them as "siblings."
+
+    if (!manufacturers || manufacturers.length === 0) return '';
+
+    const normalizedManufacturers = manufacturers.map((m) =>
+      this.removeNonEnglishLetters(m).toLowerCase(),
+    );
+
+    const [firstManufacturer, secondManufacturer] = normalizedManufacturers;
+
+    switch (manufacturers.length) {
+      case 1:
+        return 'parent';
+      case 2:
+        if (firstManufacturer === secondManufacturer) return 'parent';
+
+        const firstIsSubstring = this.isSubstring(
+          firstManufacturer,
+          secondManufacturer,
+        );
+        const secondIsSubstring = this.isSubstring(
+          secondManufacturer,
+          firstManufacturer,
+        );
+
+        if (!firstIsSubstring && !secondIsSubstring) {
+          const titleLower = this.removeNonEnglishLetters(title).toLowerCase();
+          const firstInTitle = this.isSubstring(titleLower, firstManufacturer);
+          const secondInTitle = this.isSubstring(
+            titleLower,
+            secondManufacturer,
+          );
+
+          if (firstInTitle && secondInTitle) {
+            return firstManufacturer.length > secondManufacturer.length
+              ? 'parent/child'
+              : 'child/parent';
+          } else if (firstInTitle) {
+            return 'parent/child';
+          } else if (secondInTitle) {
+            return 'child/parent';
+          } else {
+            return 'sibling';
+          }
+        }
+
+        return firstIsSubstring ? 'child/parent' : 'parent/child';
+      default:
+        return 'sibling';
+    }
+  }
+
+  private removeNonEnglishLetters(str: string) {
+    // regular expression to keep only english letters (a-z, A-Z)
+    return str.replace(/[^a-zA-Z]/g, '');
+  }
+
+  private isSubstring(strOne: string, strTwo: string): boolean {
+    return strOne.includes(strTwo);
   }
 }
