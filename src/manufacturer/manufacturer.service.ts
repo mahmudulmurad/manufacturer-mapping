@@ -194,7 +194,7 @@ export class ManufacturerService {
     manufacturers: string[],
     title: string,
   ): string {
-    // only one manufacturer, the function labels it as "parent."
+    // only one manufacturer, the function labels it as "parent." if found in title
     // When there are two manufacturers, it cleans and normalizes their names by removing non-English letters
     // and converting them to lowercase. If the cleaned names are identical, the function returns "parent."
     // If one name is a substring of the other,it returns "child/parent" or "parent/child" depending one the smaller one;
