@@ -146,6 +146,8 @@ export class ManufacturerService {
           uniqueManufacturers,
           dto.title,
         );
+        manufacturerEntity.investigationRequired =
+          this.manufacturersInvestigationAlgo(uniqueManufacturers, dto.title);
 
         const savedEntity =
           await this.manufacturerRepository.save(manufacturerEntity);
@@ -156,42 +158,43 @@ export class ManufacturerService {
     return savedManufacturers;
   }
 
-  async assignManufacturerByTitle(dto: CommonDTO): Promise<string> {
+  //Task - 3.2
+  async assignManufacturerByTitle(dto: CommonDTO): Promise<ManufacturerEntity> {
     const { title } = dto;
-    const manufacturers = await this.manufacturerRepository.find();
-    for (const manufacturer of manufacturers) {
-      if (
-        manufacturer.relatedManufacturers
-          .split(',')
-          .some((m) => title.includes(m))
-      ) {
-        return manufacturer.name;
-      }
+    const productExist = await this.manufacturerRepository.findOne({
+      where: { relatedManufacturers: title },
+    });
+
+    if (!productExist) {
+      const parsedTitle = title.split(' ');
+      const productId =
+        parsedTitle?.length > 1
+          ? `${parsedTitle[0]}_${parsedTitle[1]}`
+          : parsedTitle[0];
+      const manufacturerEntity = new ManufacturerEntity();
+      manufacturerEntity.name = productId;
+      manufacturerEntity.title = title;
+      manufacturerEntity.relatedManufacturers = parsedTitle[0];
+      manufacturerEntity.relationType = 'parent';
+      manufacturerEntity.investigationRequired = true;
+
+      return await this.manufacturerRepository.save(manufacturerEntity);
     }
-    return 'Unknown Manufacturer';
   }
 
-  async validateManufacturerMapping(): Promise<string[]> {
-    const invalidMappings: string[] = [];
-    const manufacturers = await this.manufacturerRepository.find();
-    for (const manufacturer of manufacturers) {
-      if (this.isInvalidManufacturer(manufacturer.name)) {
-        invalidMappings.push(manufacturer.name);
-      }
-    }
-    return invalidMappings;
+  async manualInvestigationItemList(): Promise<ManufacturerEntity[]> {
+    const list = await this.manufacturerRepository.find({
+      where: { investigationRequired: true },
+    });
+    return list;
   }
 
-  private isInvalidManufacturer(name: string): boolean {
-    const commonWords = ['Health', 'Pharma', 'Inc', 'Ltd'];
-    return commonWords.includes(name);
-  }
-
+  //Task- 3.1.1
   private manufacturerRelationshipAlgo(
     manufacturers: string[],
     title: string,
   ): string {
-    // only one manufacturer, the function labels it as "parent."
+    // only one manufacturer, the function labels it as "parent." if found in title
     // When there are two manufacturers, it cleans and normalizes their names by removing non-English letters
     // and converting them to lowercase. If the cleaned names are identical, the function returns "parent."
     // If one name is a substring of the other,it returns "child/parent" or "parent/child" depending one the smaller one;
@@ -209,11 +212,13 @@ export class ManufacturerService {
 
     const [firstManufacturer, secondManufacturer] = normalizedManufacturers;
 
+    const data = this.manufacturersInvestigationAlgo(manufacturers, title);
+
     switch (manufacturers.length) {
       case 1:
-        return 'parent';
+        return data ? 'unknown' : 'parent';
       case 2:
-        if (firstManufacturer === secondManufacturer) return 'parent';
+        if (!data && firstManufacturer === secondManufacturer) return 'parent';
 
         const firstIsSubstring = this.isSubstring(
           firstManufacturer,
@@ -249,6 +254,23 @@ export class ManufacturerService {
       default:
         return 'sibling';
     }
+  }
+
+  //Task-3.4
+  private manufacturersInvestigationAlgo(
+    manufacturers: string[],
+    title: string,
+  ): boolean {
+    //if any of manufacturers are not found in product title
+    //then they need to investigate manually and setting the field true
+
+    const lowerCaseTitle = this.removeNonEnglishLetters(title).toLowerCase();
+
+    return !manufacturers.some((manufacturer) =>
+      lowerCaseTitle.includes(
+        this.removeNonEnglishLetters(manufacturer).toLowerCase(),
+      ),
+    );
   }
 
   private removeNonEnglishLetters(str: string) {

@@ -17,4 +17,7 @@ export class ManufacturerEntity {
 
   @Column({ nullable: true })
   relationType: string;
+
+  @Column()
+  investigationRequired: boolean;
 }

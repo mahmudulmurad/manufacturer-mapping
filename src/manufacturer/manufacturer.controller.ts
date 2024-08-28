@@ -14,13 +14,15 @@ export class ManufacturerController {
     return await this.manufacturerService.parseCSVAndMapManufacturers(dto);
   }
 
-  @Get('assign')
-  async assignManufacturer(@Body() dto: CommonDTO) {
+  @Post('assigned-manufacturer')
+  async assignManufacturer(
+    @Body() dto: CommonDTO,
+  ): Promise<ManufacturerEntity> {
     return await this.manufacturerService.assignManufacturerByTitle(dto);
   }
 
-  @Get('validate')
-  async validateMappings() {
-    return await this.manufacturerService.validateManufacturerMapping();
+  @Get('manual-investigation-items')
+  async manualInvestigationItems(): Promise<ManufacturerEntity[]> {
+    return await this.manufacturerService.manualInvestigationItemList();
   }
 }
